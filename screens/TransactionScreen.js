@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import * as Permissions from 'expo-permissions';
+import firebase from 'firebase';
+
+import database from '../config';
 
 export default class TransactionScreen extends React.Component {
 
@@ -15,6 +18,7 @@ export default class TransactionScreen extends React.Component {
          buttonState: 'normal',
          scannedBookId: '',
          scannedStudentId:'',
+         transactionMessage: ''
       }
    }
 
@@ -34,6 +38,7 @@ export default class TransactionScreen extends React.Component {
       const buttonState = this.state.buttonState;
 
       if(buttonState === 'Student ID') {
+        console.log(buttonState);
          this.setState({
             scannedStudentId: data,
             scanned: true,
@@ -41,6 +46,7 @@ export default class TransactionScreen extends React.Component {
          });
       } 
       else if(buttonState === 'Book ID') {
+        console.log(buttonState);
          this.setState({
             scannedBookId: data,
             scanned: true,
@@ -48,6 +54,92 @@ export default class TransactionScreen extends React.Component {
          });
       }
       console.log(`Bar code with type ${type} and data ${data} has been scanned!`);
+   }
+
+   handleTransaction = async () => {
+    let transactionMessage;
+
+    console.log('In handle transaction');
+
+    let book;
+
+    database.collection('books').doc(this.state.scannedBookId).get().then((doc) => {
+      book = doc.data();
+      console.log(doc.data());
+      if(book.bookAvailability) {
+        console.log('available' + book.bookAvailability);
+        this.initiateBookIssue();
+        transactionMessage = 'Book issued';
+        this.setState({
+          transactionMessage: transactionMessage
+        })
+  
+      } else {
+        console.log('not available' + book.bookAvailability);
+  
+        this.initiateBookReturn();
+        this.setState({
+          transactionMessage: transactionMessage
+        })
+        transactionMessage = 'Book returned';
+      }
+
+    }).catch((e)=> console.log('error:' + e));
+   }
+
+   initiateBookIssue = async () => {
+     try {
+      database.collection('transaction').add({
+        studentID: this.state.scannedStudentId,
+        bookID: this.state.scannedBookId,
+        transactionType: 'issue',
+        // date: firebase.firestore.timestamp.now().toDate()
+      });
+  
+      await database.collection('books').doc(this.state.scannedBookId).update({
+        bookAvailability: false
+      })
+  
+      await database.collection('student').doc(this.state.scannedStudentId).update({
+        numberOfBooksIssued: firebase.firestore.filledValue.increment(1)
+      });
+      alert('Book Issued');
+      this.setState({
+        scannedBookId: '',
+        scannedStudentId: ''
+      });
+
+     } catch (e) {
+       alert('An error occured');
+     }
+
+   }
+
+   initiateBookReturn = async () => {
+    try {
+      await database.collection('transactions').add({
+        studentID: this.state.scannedStudentId,
+        bookID: this.state.scannedBookId,
+        transactionType: 'return',
+        // date: firebase.firestore.timestamp.now().toDate()
+      });
+  
+      await database.collection('books').doc(this.state.scannedBookId).update({
+        bookAvailability: true
+      })
+  
+      await database.collection('students').doc(this.state.scannedStudentId).update({
+        numberOfBooksIssued: firebase.firestore.filledValue.decrement(1)
+      });
+      alert('Book Returned Successfully');
+      this.setState({
+        scannedBookId: '',
+        scannedStudentId: ''
+      });
+
+     } catch (e) {
+       alert('An error occured');
+     }
    }
 
    render() {
@@ -80,7 +172,7 @@ export default class TransactionScreen extends React.Component {
               <TouchableOpacity 
                 style={styles.scanButton}
                 onPress={()=>{
-                  this.getCameraPermissions("BookId")
+                  this.requestCameraPermission("Book ID")
                 }}>
                 <Text style={styles.buttonText}>Scan</Text>
               </TouchableOpacity>
@@ -93,11 +185,14 @@ export default class TransactionScreen extends React.Component {
               <TouchableOpacity 
                 style={styles.scanButton}
                 onPress={()=>{
-                  this.getCameraPermissions("StudentId")
+                  this.requestCameraPermission("Student ID")
                 }}>
                 <Text style={styles.buttonText}>Scan</Text>
               </TouchableOpacity>
               </View>
+              <TouchableOpacity style = {styles.submitButton} onPress = {this.handleTransaction}>
+                <Text>Submit</Text>
+              </TouchableOpacity>
             </View>
           );
       }
@@ -140,6 +235,15 @@ const styles = StyleSheet.create({
       width: 50,
       borderWidth: 1.5,
       borderLeftWidth: 0
+    },
+    submitButton: {
+      backgroundColor: "green",
+      width: 100,
+      height: 40,
+      borderWidth: 1,
+      borderRadius: 25,
+      justifyContent: "center",
+      alignItems: "center"
     }
 });
 
