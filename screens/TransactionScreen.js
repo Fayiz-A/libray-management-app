@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, KeyboardAvoidingView, ToastAndroid } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import * as Permissions from 'expo-permissions';
 import firebase from 'firebase';
@@ -70,6 +70,7 @@ export default class TransactionScreen extends React.Component {
         console.log('available' + book.bookAvailability);
         this.initiateBookIssue();
         transactionMessage = 'Book issued';
+        ToastAndroid.show(transactionMessage,ToastAndroid.SHORT);
         this.setState({
           transactionMessage: transactionMessage
         })
@@ -82,13 +83,13 @@ export default class TransactionScreen extends React.Component {
           transactionMessage: transactionMessage
         })
         transactionMessage = 'Book returned';
+        // ToastAndroid.show(transactionMessage,ToastAndroid.SHORT);
       }
 
     }).catch((e)=> console.log('error:' + e));
    }
 
    initiateBookIssue = async () => {
-     try {
       database.collection('transaction').add({
         studentID: this.state.scannedStudentId,
         bookID: this.state.scannedBookId,
@@ -101,22 +102,20 @@ export default class TransactionScreen extends React.Component {
       })
   
       await database.collection('student').doc(this.state.scannedStudentId).update({
-        numberOfBooksIssued: firebase.firestore.filledValue.increment(1)
+        numberOfBooksIssued: firebase.firestore.FieldValue.increment(1)
       });
-      alert('Book Issued');
+      //alert('Book Issued');
+
       this.setState({
         scannedBookId: '',
         scannedStudentId: ''
       });
 
-     } catch (e) {
-       alert('An error occured');
-     }
+     
 
    }
 
    initiateBookReturn = async () => {
-    try {
       await database.collection('transactions').add({
         studentID: this.state.scannedStudentId,
         bookID: this.state.scannedBookId,
@@ -129,17 +128,15 @@ export default class TransactionScreen extends React.Component {
       })
   
       await database.collection('students').doc(this.state.scannedStudentId).update({
-        numberOfBooksIssued: firebase.firestore.filledValue.decrement(1)
+        numberOfBooksIssued: firebase.firestore.FieldValue.increment(1)
       });
-      alert('Book Returned Successfully');
+      // alert('Book Returned Successfully');
       this.setState({
         scannedBookId: '',
         scannedStudentId: ''
       });
 
-     } catch (e) {
-       alert('An error occured');
-     }
+     
    }
 
    render() {
@@ -157,7 +154,7 @@ export default class TransactionScreen extends React.Component {
       }
       else if (buttonState === 'normal') {
          return(
-            <View style={styles.container}>
+           <KeyboardAvoidingView style={styles.container} behaviour="padding" enable>
               <View>
                 <Image
                   source={require("../assets/booklogo.jpg")}
@@ -168,6 +165,7 @@ export default class TransactionScreen extends React.Component {
               <TextInput 
                 style={styles.inputBox}
                 placeholder="Book Id"
+                onChangeText={ text => this.setState({ scannedBookId: text})}
                 value={this.state.scannedBookId}/>
               <TouchableOpacity 
                 style={styles.scanButton}
@@ -181,6 +179,7 @@ export default class TransactionScreen extends React.Component {
               <TextInput 
                 style={styles.inputBox}
                 placeholder="Student Id"
+                onChangeText={ text => this.setState({ scannedStudentId: text})}
                 value={this.state.scannedStudentId}/>
               <TouchableOpacity 
                 style={styles.scanButton}
@@ -193,7 +192,8 @@ export default class TransactionScreen extends React.Component {
               <TouchableOpacity style = {styles.submitButton} onPress = {this.handleTransaction}>
                 <Text>Submit</Text>
               </TouchableOpacity>
-            </View>
+            </KeyboardAvoidingView>
+
           );
       }
    }
