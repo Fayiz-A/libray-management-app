@@ -4,7 +4,9 @@ import { BarCodeScanner } from 'expo-barcode-scanner';
 import * as Permissions from 'expo-permissions';
 import firebase from 'firebase';
 
-import database from '../config';
+import firebaseConfig from '../config';
+
+let database = firebaseConfig.firestore();
 
 export default class TransactionScreen extends React.Component {
 

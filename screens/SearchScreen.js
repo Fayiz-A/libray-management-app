@@ -1,8 +1,9 @@
 import React from 'react';
 import { Text, View, FlatList, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import database from '../config'
 
+import firebaseConfig from '../config';
 
+let database = firebaseConfig.firestore();
 
 export default class SearchScreen extends React.Component {
    constructor(props) {
